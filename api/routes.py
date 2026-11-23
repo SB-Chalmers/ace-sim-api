@@ -6,6 +6,7 @@ api.routes
   POST /v1/energy-rc  the same request and result, computed with EPSM RC (ISO 52016-1)
   POST /v1/simulate   both, run at the same time
   POST /v1/grasshopper the same request as a Grasshopper definition (.ghx)
+  POST /v1/hbjson     the /v1/energy Honeybee model as a file (.hbjson), not simulated
 
 Each request is validated, put on a Celery queue, and answered when the
 worker is done. Identical requests share one job and abandoned jobs are
@@ -16,6 +17,7 @@ shortly after.
 from __future__ import annotations
 
 import asyncio
+import json
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import Response
@@ -98,4 +100,20 @@ async def grasshopper(body: GrasshopperRequest):
         grasshopper_file(payload),
         media_type='application/xml',
         headers={'Content-Disposition': 'attachment; filename="heath.ghx"'},
+    )
+
+
+@router.post('/hbjson', responses={**_ERRORS, 200: {'content': {'application/json': {}}}})
+async def hbjson(body: EnergyRequest, request: Request):
+    """The Honeybee Model /v1/energy would simulate, as a downloadable .hbjson.
+
+    Same request as /v1/energy. The model (rooms, windows, shades, program,
+    EPSM constructions and ideal air) is built on an energy worker and nothing
+    is simulated. Open it with HB Model from HBJSON, or Model.from_hbjson.
+    """
+    result = await wait(*submit(celery_app.hbjson, _payload(body)), request)
+    return Response(
+        json.dumps(result['model']),
+        media_type='application/json',
+        headers={'Content-Disposition': 'attachment; filename="heath.hbjson"'},
     )

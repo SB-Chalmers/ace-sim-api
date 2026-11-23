@@ -55,6 +55,3 @@ per-edge window ratios (`wwr_by_edge`).
    Keep these nicknames: `request`, the slider names in `api/grasshopper.py`,
    `all_floors_`, `Heath Request` and `Heath Sensors`.
 3. `tests/test_grasshopper.py` checks that the components match the backend.
-4. `POST /v1/hbjson` returns the same model as an `.hbjson`
-   (`build_energy_model(..., grasshopper=True)`), apart from the two
-   differences above.

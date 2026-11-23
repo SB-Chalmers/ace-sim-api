@@ -33,7 +33,6 @@ from honeybee_energy.schedule.ruleset import ScheduleRuleset
 from honeybee_energy.simulation.parameter import SimulationParameter
 from honeybee_energy.writer import model_to_idf
 
-from ..model import add_windows, sensor_grid
 from ..geometry import (context_shades, footprint_area, make_adiabatic, shade_windows, shading_depths,
                         shared_edges, storey, window_ratios)
 
@@ -118,19 +117,17 @@ PROGRAMS = {
 }
 
 
-def floor_groups(room: dict, alone=()) -> list[list[int]]:
+def floor_groups(room: dict) -> list[list[int]]:
     """Group floors that can share one zone with a multiplier.
 
-    The ground and top floors always stand alone, and so do the floors in
-    ``alone`` (the daylight floors of the Grasshopper model). Consecutive middle
-    floors are merged unless their shared (adiabatic) walls differ.
+    The ground and top floors always stand alone. Consecutive middle floors are
+    merged unless their shared (adiabatic) walls differ.
     """
     floors = room['floors']
     groups: list[list[int]] = []
     previous = None
     for floor in range(1, floors + 1):
-        key = (floor == 1 or floor in alone, floor == floors or floor in alone,
-               frozenset(shared_edges(room, floor)))
+        key = (floor == 1, floor == floors, frozenset(shared_edges(room, floor)))
         if key == previous and not key[0] and not key[1]:
             groups[-1].append(floor)
         else:
@@ -141,25 +138,17 @@ def floor_groups(room: dict, alone=()) -> list[list[int]]:
 
 def build_energy_model(room: dict, constructions: dict, building_program: str,
                        natural_ventilation: bool,
-                       context_buildings: list[dict] | None = None,
-                       grasshopper: bool = False) -> Model:
+                       context_buildings: list[dict] | None = None) -> Model:
     """The Honeybee energy Model: rooms, windows, shades, program, constructions and ideal air.
 
-    By default this is the model build_idf writes to EnergyPlus. With
-    ``grasshopper=True`` it is the one model the Grasshopper template builds
-    (grasshopper/README.md), which POST /v1/hbjson returns: the daylight floors
-    are zones of their own with their sensor grids, and every zone has the
-    detailed windows of the daylight model instead of one window per wall.
+    This is what build_idf writes to EnergyPlus, and what POST /v1/hbjson returns.
     """
     floors = room['floors']
     overhang, fin = shading_depths(room)
     construction_set = _construction_set_from_epsm(constructions)
-    daylight_floors = ()
-    if grasshopper:
-        daylight_floors = range(1, floors + 1) if room['simulate_all_floors'] else (room['selected_floor_number'],)
 
-    all_rooms, grids = [], []
-    for group in floor_groups(room, daylight_floors):
+    all_rooms = []
+    for group in floor_groups(room):
         first, last = group[0], group[-1]
         name = f'Floor_{first}' if first == last else f'Floors_{first}_{last}'
         r = storey(room, first, name)
@@ -174,24 +163,19 @@ def build_energy_model(room: dict, constructions: dict, building_program: str,
             elif str(f.type) == 'RoofCeiling':
                 f.boundary_condition = boundary_conditions.outdoors if last == floors else boundary_conditions.adiabatic
 
-        if grasshopper:
-            add_windows(r, room, first)  # every window, with its overhang and fins
-            if first in daylight_floors:
-                grids.append(sensor_grid(r, room, f'{name}_grid'))
-        else:
-            # One window per wall with the requested glazing ratio (HB Apertures by Ratio).
-            # Energy only needs glazed area and orientation; the daylight model keeps
-            # the individual windows. That one window gets an overhang and two fins as
-            # deep as the daylight model's, so cooling responds to reveals and
-            # overhangs. Shading every individual window instead costs ~15 s a run.
-            walls = [f for f in r.faces if str(f.type) == 'Wall']
-            shared = shared_edges(room, first)  # same for every floor in the group
-            for edge_index, (wall_face, ratio) in enumerate(zip(walls, window_ratios(room, walls))):
-                if edge_index in shared:
-                    make_adiabatic(wall_face)
-                elif ratio > 0:
-                    wall_face.apertures_by_ratio(ratio, 0.01)
-                    shade_windows(wall_face, overhang, fin)
+        # One window per wall with the requested glazing ratio (HB Apertures by Ratio).
+        # Energy only needs glazed area and orientation; the daylight model keeps
+        # the individual windows. That one window gets an overhang and two fins as
+        # deep as the daylight model's, so cooling responds to reveals and
+        # overhangs. Shading every individual window instead costs ~15 s a run.
+        walls = [f for f in r.faces if str(f.type) == 'Wall']
+        shared = shared_edges(room, first)  # same for every floor in the group
+        for edge_index, (wall_face, ratio) in enumerate(zip(walls, window_ratios(room, walls))):
+            if edge_index in shared:
+                make_adiabatic(wall_face)
+            elif ratio > 0:
+                wall_face.apertures_by_ratio(ratio, 0.01)
+                shade_windows(wall_face, overhang, fin)
 
         prog = program_type_by_identifier(PROGRAMS[building_program]).duplicate()
         # Natural ventilation: raise the cooling setpoint to 50 °C so the ideal
@@ -218,8 +202,6 @@ def build_energy_model(room: dict, constructions: dict, building_program: str,
     model = Model('Energy_Model', rooms=all_rooms)
     for shade in context_shades(context_buildings):
         model.add_shade(shade)
-    for grid in grids:
-        model.properties.radiance.add_sensor_grid(grid)
     return model
 
 

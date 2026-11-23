@@ -37,7 +37,7 @@ service and Foton runs on the CPU (much slower).
 | `POST` | `/v1/energy-rc` | The same request and response, computed with EPSM RC (ISO 52016-1) in about 0.1 s; see [EPSM RC energy](#epsm-rc-energy) |
 | `POST` | `/v1/simulate` | Both, in parallel |
 | `POST` | `/v1/grasshopper` | The request as a Grasshopper file (`heath.ghx`) that rebuilds the same model; see [grasshopper/README.md](grasshopper/README.md) |
-| `POST` | `/v1/hbjson` | The `/v1/energy` request as the Honeybee model the Grasshopper file builds (`heath.hbjson`), with sensor grids and energy properties; nothing is simulated |
+| `POST` | `/v1/hbjson` | The `/v1/energy` request as the Honeybee model it would simulate (`heath.hbjson`), without running EnergyPlus |
 | `GET` | `/health` | Liveness (no key needed) |
 
 Full schemas are at `/docs`. A minimal request:

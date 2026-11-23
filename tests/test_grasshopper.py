@@ -75,6 +75,7 @@ def test_clockwise_footprint_is_reversed_like_the_api():
 ])
 def test_daylight_floors_get_their_own_zone(floors, alone, expected):
     assert heath_request.floor_groups({}, floors, alone) == expected
+    assert floor_groups({'floors': floors}, alone) == expected
 
 
 def test_each_sensor_gets_its_grid_cell():

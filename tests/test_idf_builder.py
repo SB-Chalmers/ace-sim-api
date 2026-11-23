@@ -126,12 +126,22 @@ def test_each_window_gets_an_overhang_and_two_fins(captured_model):
         assert overhang.area == pytest.approx(width * 0.8)
 
 
-def test_energy_model_round_trips_as_hbjson():
-    """POST /v1/hbjson returns this dict; it must load back with the energy properties."""
+def test_grasshopper_model_round_trips_as_hbjson():
+    """POST /v1/hbjson returns this model; it must match the template and load back from its dict."""
     from honeybee.model import Model
+    from simulation.model import build_model
 
-    room = full_room(ROOM)
-    model = Model.from_dict(idf_builder.build_energy_model(room, CONSTRUCTIONS, 'Office', False, []).to_dict())
-    assert model.rooms[0].properties.energy.construction_set.identifier == 'EPSM_ConstructionSet'
-    assert model.rooms[0].properties.energy.program_type.identifier == 'Generic Office Program'
-    assert [r.multiplier for r in model.rooms] == [1, 1, 1]
+    room = full_room({**ROOM, 'floors': 6, 'selected_floor_number': 3})
+    built = idf_builder.build_energy_model(room, CONSTRUCTIONS, 'Office', False, [], grasshopper=True)
+    model = Model.from_dict(built.to_dict())
+    assert [(r.identifier, r.multiplier) for r in model.rooms] == [
+        ('Floor_1', 1), ('Floor_2', 1), ('Floor_3', 1), ('Floors_4_5', 2), ('Floor_6', 1)]
+    # The daylight floor: the daylight model's sensors and detailed windows.
+    daylight, _ = build_model(room)
+    (grid,) = model.properties.radiance.sensor_grids
+    assert grid.room_identifier == 'Floor_3'
+    assert [s.pos for s in grid.sensors] == [s.pos for s in daylight.properties.radiance.sensor_grids[0].sensors]
+    assert len(model.rooms[2].apertures) == len(daylight.rooms[0].apertures) > 4
+    energy = model.rooms[0].properties.energy
+    assert energy.construction_set.identifier == 'EPSM_ConstructionSet'
+    assert energy.program_type.identifier == 'Generic Office Program'

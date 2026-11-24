@@ -1,7 +1,11 @@
 """
 api.grasshopper
 ───────────────
-Fill the Grasshopper template (grasshopper/heath.ghx) with one Heath request.
+Fill a Grasshopper template with one Heath request. There are two:
+
+- ``heath.ghx``: one model for daylight and energy (detailed windows everywhere).
+- ``heath_split.ghx``: the backend's two models, a detailed daylight model and
+  a simple energy model with one window per wall.
 
 A .ghx file is the XML form of a Grasshopper definition, so no Rhino is
 needed: the request goes into the panel called ``request``, each slider named
@@ -17,7 +21,7 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 FOLDER = Path(__file__).resolve().parent.parent / 'grasshopper'
-TEMPLATE = FOLDER / 'heath.ghx'
+TEMPLATES = {'single': FOLDER / 'heath.ghx', 'split': FOLDER / 'heath_split.ghx'}
 COMPONENTS = {'Heath Request': 'heath_request.py', 'Heath Sensors': 'heath_sensors.py'}
 
 def _wwr(room: dict, direction: str) -> float:
@@ -60,10 +64,10 @@ def _set(chunk: ET.Element, path: str, value: str) -> None:
     item.text = value
 
 
-def grasshopper_file(request: dict) -> bytes:
-    """The template .ghx with the request filled in (``request`` as the API received it)."""
+def grasshopper_file(request: dict, template: str = 'single') -> bytes:
+    """A template .ghx (``single`` or ``split``) with the request filled in."""
     room = request['room']
-    tree = ET.parse(TEMPLATE)
+    tree = ET.parse(TEMPLATES[template])
     found = set()
     for nick, chunk in _objects(tree.getroot()):
         if nick == 'request':

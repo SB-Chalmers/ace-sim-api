@@ -5,8 +5,8 @@ components, so students can continue a Heath study in Grasshopper:
 
 | File | Endpoint | Models |
 |---|---|---|
-| `heath_split.ghx` | `POST /v1/grasshopper-split` | **The backend's two models**: a detailed daylight model of the daylight floor(s) and a simple energy model with one window per wall. Gives Heath's numbers. |
-| `heath.ghx` | `POST /v1/grasshopper` | **One model for daylight and energy**: every zone has Heath's detailed windows, overhangs and fins, and the daylight floor is a zone of its own. Closer to a real building, so energy differs a little from Heath. |
+| `heath_split.ghx` | `POST /v1/grasshopper/split` | **The backend's two models**: a detailed daylight model of the daylight floor(s) and a simple energy model with one window per wall. Gives Heath's numbers. |
+| `heath.ghx` | `POST /v1/grasshopper/detailed` | **One model for daylight and energy**: every zone has Heath's detailed windows, overhangs and fins, and the daylight floor is a zone of its own. Closer to a real building, so energy differs a little from Heath. |
 
 The split model gives the energy simulation only what it needs: glazed area,
 orientation and shading per wall. Shading every detailed window instead would
@@ -49,7 +49,7 @@ per-edge window ratios (`wwr_by_edge`).
 
 ## For developers
 
-1. `POST /v1/grasshopper` and `POST /v1/grasshopper-split` take a
+1. `POST /v1/grasshopper/detailed` and `POST /v1/grasshopper/split` take a
    `/v1/simulate` body (`energy` optional) and return the filled template
    (see `api/grasshopper.py`). The request goes into the
    `request` panel, the sliders are set to its values, and the two GhPython
@@ -58,7 +58,7 @@ per-edge window ratios (`wwr_by_edge`).
    Keep these nicknames: `request`, the slider names in `api/grasshopper.py`,
    `all_floors_`, `Heath Request` and `Heath Sensors`.
 3. `tests/test_grasshopper.py` checks that the components match the backend.
-4. `POST /v1/hbjson-detailed` returns the `heath.ghx` model as an `.hbjson`
-   (`build_energy_model(..., grasshopper=True)`), and `POST /v1/hbjson` the
+4. `POST /v1/hbjson/detailed` returns the `heath.ghx` model as an `.hbjson`
+   (`build_energy_model(..., grasshopper=True)`), and `POST /v1/hbjson/energy` the
    energy model of `heath_split.ghx`, apart from the ideal air and sizing
    differences above.

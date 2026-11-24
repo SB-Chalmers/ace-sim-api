@@ -244,7 +244,7 @@ class SimulateRequest(_Base):
 
 
 class GrasshopperRequest(_Base):
-    """Body of POST /v1/grasshopper: a /v1/simulate body, energy optional."""
+    """Body of POST /v1/grasshopper/detailed and /split: a /v1/simulate body, energy optional."""
     daylight: DaylightOptions = Field(default_factory=DaylightOptions)
     energy: Optional[EnergyOptions] = None
 

@@ -147,7 +147,7 @@ def build_energy_model(room: dict, constructions: dict, building_program: str,
 
     By default this is the model build_idf writes to EnergyPlus. With
     ``grasshopper=True`` it is the one model the Grasshopper template builds
-    (grasshopper/README.md), which POST /v1/hbjson returns: the daylight floors
+    (grasshopper/README.md), which POST /v1/hbjson/detailed returns: the daylight floors
     are zones of their own with their sensor grids, and every zone has the
     detailed windows of the daylight model instead of one window per wall.
     """

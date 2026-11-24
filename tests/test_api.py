@@ -74,7 +74,8 @@ def test_validation_error_is_422(client):
 
 
 @pytest.mark.parametrize('path', ['/v1/daylight', '/v1/energy', '/v1/energy-rc', '/v1/grasshopper',
-                                  '/v1/grasshopper-split', '/v1/hbjson', '/v1/hbjson-detailed'])
+                                  '/v1/grasshopper/detailed', '/v1/grasshopper/split',
+                                  '/v1/hbjson/detailed', '/v1/hbjson/energy'])
 def test_impossible_geometry_is_422_on_every_endpoint(client, path):
     """Checked in the API, so no worker slot is spent on it."""
     room = {'footprint_coordinates': [[0, 0], [4, 0], [8, 0]]}
@@ -102,7 +103,7 @@ def test_every_task_has_a_job_key():
     assert set(FIELDS) == {name for name in app.tasks if name.startswith('simulation.')}
 
 
-@pytest.mark.parametrize('path,detailed', [('/v1/hbjson', False), ('/v1/hbjson-detailed', True)])
+@pytest.mark.parametrize('path,detailed', [('/v1/hbjson/energy', False), ('/v1/hbjson/detailed', True)])
 def test_hbjson_is_a_download_of_the_model(client, path, detailed):
     response = post(client, path, {'room': ROOM, 'energy': ENERGY})
     assert response.status_code == 200, response.text
@@ -110,7 +111,8 @@ def test_hbjson_is_a_download_of_the_model(client, path, detailed):
     assert response.json() == {'detailed': detailed}
 
 
-GHX = [('/v1/grasshopper', 'heath.ghx'), ('/v1/grasshopper-split', 'heath_split.ghx')]
+GHX = [('/v1/grasshopper/detailed', 'heath.ghx'), ('/v1/grasshopper', 'heath.ghx'),
+       ('/v1/grasshopper/split', 'heath_split.ghx')]
 
 
 @pytest.mark.parametrize('path, filename', GHX)

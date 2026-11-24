@@ -36,7 +36,8 @@ service and Foton runs on the CPU (much slower).
 | `POST` | `/v1/energy` | Annual heating/cooling/total, monthly heat balance, hourly heating and cooling |
 | `POST` | `/v1/energy-rc` | The same request and response, computed with EPSM RC (ISO 52016-1) in about 0.1 s; see [EPSM RC energy](#epsm-rc-energy) |
 | `POST` | `/v1/simulate` | Both, in parallel |
-| `POST` | `/v1/grasshopper` | The request as a Grasshopper file (`heath.ghx`) that rebuilds the same model; see [grasshopper/README.md](grasshopper/README.md) |
+| `POST` | `/v1/grasshopper-split` | The request as a Grasshopper file (`heath_split.ghx`) that rebuilds the backend's daylight and energy models; see [grasshopper/README.md](grasshopper/README.md) |
+| `POST` | `/v1/grasshopper` | The same with one detailed model for daylight and energy (`heath.ghx`) |
 | `POST` | `/v1/hbjson` | The `/v1/energy` request as the Honeybee model it would simulate (`heath.hbjson`), without running EnergyPlus |
 | `GET` | `/health` | Liveness (no key needed) |
 

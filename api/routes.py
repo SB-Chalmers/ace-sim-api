@@ -6,6 +6,7 @@ api.routes
   POST /v1/energy-rc  the same request and result, computed with EPSM RC (ISO 52016-1)
   POST /v1/simulate   both, run at the same time
   POST /v1/grasshopper the same request as a Grasshopper definition (.ghx)
+  POST /v1/grasshopper-split  the same, with the backend's separate daylight and energy models
 
 Each request is validated, put on a Celery queue, and answered when the
 worker is done. Identical requests share one job and abandoned jobs are
@@ -85,17 +86,32 @@ async def simulate(body: SimulateRequest, request: Request):
     return {'daylight': daylight_result, 'energy': energy_result}
 
 
+def _ghx(body: GrasshopperRequest, template: str, filename: str) -> Response:
+    payload = _payload(body)
+    payload.pop('pack', None)
+    return Response(
+        grasshopper_file(payload, template),
+        media_type='application/xml',
+        headers={'Content-Disposition': f'attachment; filename="{filename}"'},
+    )
+
+
 @router.post('/grasshopper', responses={200: {'content': {'application/xml': {}}}})
 async def grasshopper(body: GrasshopperRequest):
-    """The request as a Grasshopper definition that rebuilds the same model.
+    """The request as a Grasshopper definition with one model for daylight and energy.
 
     Open it in Rhino 8 with Ladybug Tools and Foton installed (see
     grasshopper/README.md). Nothing is simulated here.
     """
-    payload = _payload(body)
-    payload.pop('pack', None)
-    return Response(
-        grasshopper_file(payload),
-        media_type='application/xml',
-        headers={'Content-Disposition': 'attachment; filename="heath.ghx"'},
-    )
+    return _ghx(body, 'single', 'heath.ghx')
+
+
+@router.post('/grasshopper-split', responses={200: {'content': {'application/xml': {}}}})
+async def grasshopper_split(body: GrasshopperRequest):
+    """The request as a Grasshopper definition that rebuilds the backend's two models.
+
+    A detailed daylight model of the daylight floor(s), like /v1/daylight, and
+    a simple energy model with one window per wall, like /v1/energy. Nothing is
+    simulated here.
+    """
+    return _ghx(body, 'split', 'heath_split.ghx')

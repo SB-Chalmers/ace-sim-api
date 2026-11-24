@@ -72,7 +72,8 @@ def test_validation_error_is_422(client):
     assert response.status_code == 422
 
 
-@pytest.mark.parametrize('path', ['/v1/daylight', '/v1/energy', '/v1/energy-rc', '/v1/grasshopper'])
+@pytest.mark.parametrize('path', ['/v1/daylight', '/v1/energy', '/v1/energy-rc', '/v1/grasshopper',
+                                  '/v1/grasshopper-split'])
 def test_impossible_geometry_is_422_on_every_endpoint(client, path):
     """Checked in the API, so no worker slot is spent on it."""
     room = {'footprint_coordinates': [[0, 0], [4, 0], [8, 0]]}
@@ -100,16 +101,20 @@ def test_every_task_has_a_job_key():
     assert set(FIELDS) == {name for name in app.tasks if name.startswith('simulation.')}
 
 
-def test_grasshopper_file_holds_the_request(client):
+GHX = [('/v1/grasshopper', 'heath.ghx'), ('/v1/grasshopper-split', 'heath_split.ghx')]
+
+
+@pytest.mark.parametrize('path, filename', GHX)
+def test_grasshopper_file_holds_the_request(client, path, filename):
     import json
     import xml.etree.ElementTree as ET
     from api.grasshopper import _objects
 
     room = {'footprint_coordinates': [[0, 0], [9, 0], [9, 7], [0, 7]], 'floors': 40,
             'wwr_by_cardinal': {'north': 0.1, 'east': 0.2, 'south': 0.6, 'west': 0.3}}
-    response = post(client, '/v1/grasshopper', {'room': room, 'energy': ENERGY})
+    response = post(client, path, {'room': room, 'energy': ENERGY})
     assert response.status_code == 200, response.text
-    assert 'heath.ghx' in response.headers['content-disposition']
+    assert f'"{filename}"' in response.headers['content-disposition']
     objects = dict(_objects(ET.fromstring(response.content)))
 
     def item(nick, name):
@@ -124,12 +129,13 @@ def test_grasshopper_file_holds_the_request(client):
     assert 'def sensor_points' in item('Heath Sensors', 'CodeInput')
 
 
-def test_grasshopper_file_takes_a_single_wwr_like_heath_sends(client):
+@pytest.mark.parametrize('path, filename', GHX)
+def test_grasshopper_file_takes_a_single_wwr_like_heath_sends(client, path, filename):
     import xml.etree.ElementTree as ET
     from api.grasshopper import _objects
 
     room = {'footprint_coordinates': [[0, 0], [9, 0], [9, 7], [0, 7]], 'wwr': 0.45}
-    response = post(client, '/v1/grasshopper', {'room': room})
+    response = post(client, path, {'room': room})
     assert response.status_code == 200, response.text
     objects = dict(_objects(ET.fromstring(response.content)))
     for nick in ('wwr_north_', 'wwr_east_', 'wwr_south_', 'wwr_west_'):

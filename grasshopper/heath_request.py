@@ -18,6 +18,10 @@ Outputs:
     group_floors   first floor (1-based) of each zone
     multipliers    floors each zone stands for (identical middle floors)
     grid_zones     indices of the zones that get a sensor grid (the daylight floors)
+    daylight_floors      the floors (1-based) that get a sensor grid
+    energy_floors, energy_multipliers   first floor and multiplier of each zone
+                   of the backend's energy model (heath_split.ghx), where the
+                   daylight floors are not split off
     shared_edges   per footprint edge, the floors where it is a party wall
     program        honeybee-energy program type for the Heath building_program
     natural_vent   True when Heath's natural ventilation is on (no cooling)
@@ -188,6 +192,9 @@ if 'ghenv' in globals() and _request:
     group_floors = [g[0] for g in groups]
     multipliers = [len(g) for g in groups]
     grid_zones = [i for i, g in enumerate(groups) if g[0] in daylight_floors]
+    energy_groups = floor_groups(room, floors)
+    energy_floors = [g[0] for g in energy_groups]
+    energy_multipliers = [len(g) for g in energy_groups]
     shared_edges = [str(f) for f in (room.get('shared_floors_by_edge') or [])]
     daylight = request.get('daylight') or {}
     quality = daylight.get('quality', 'preview')
@@ -215,4 +222,4 @@ if 'ghenv' in globals() and _request:
 
         wall_layers, roof_layers, floor_layers = (
             _tree(wall_layers), _tree(roof_layers), _tree(floor_layers))
-    epw =weather_file(request, os.path.join(tempfile.gettempdir(), 'heath'))
+    epw = weather_file(request, os.path.join(tempfile.gettempdir(), 'heath'))

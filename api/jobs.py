@@ -38,6 +38,7 @@ FIELDS = {
     'simulation.daylight': ('room', 'context_buildings', 'epw', 'pack', 'daylight'),
     'simulation.energy': ('room', 'context_buildings', 'epw', 'pack', 'energy'),
     'simulation.energy_rc': ('room', 'context_buildings', 'epw', 'pack', 'energy'),
+    'simulation.hbjson': ('room', 'context_buildings', 'energy'),
 }
 # How often to ask Redis whether the job is done: every 5% of the time waited so far,
 # kept between 10 and 100 ms. A fast job (EPSM RC, a small daylight room) is answered within

@@ -136,14 +136,12 @@ def floor_groups(room: dict) -> list[list[int]]:
     return groups
 
 
-def build_idf(room: dict, constructions: dict, building_program: str,
-              natural_ventilation: bool,
-              context_buildings: list[dict] | None = None) -> tuple[str, float, dict]:
-    """Generate a complete EnergyPlus IDF using honeybee-energy.
+def build_energy_model(room: dict, constructions: dict, building_program: str,
+                       natural_ventilation: bool,
+                       context_buildings: list[dict] | None = None) -> Model:
+    """The Honeybee energy Model: rooms, windows, shades, program, constructions and ideal air.
 
-    Returns (idf_text, floor_area_m2, {ZONE NAME: multiplier}). The parser
-    needs the multipliers because EnergyPlus reports zone variables (people,
-    lights, windows...) for a single copy of a multiplied zone.
+    This is what build_idf writes to EnergyPlus, and what POST /v1/hbjson returns.
     """
     floors = room['floors']
     overhang, fin = shading_depths(room)
@@ -202,9 +200,21 @@ def build_idf(room: dict, constructions: dict, building_program: str,
         all_rooms.append(r)
 
     model = Model('Energy_Model', rooms=all_rooms)
-
     for shade in context_shades(context_buildings):
         model.add_shade(shade)
+    return model
+
+
+def build_idf(room: dict, constructions: dict, building_program: str,
+              natural_ventilation: bool,
+              context_buildings: list[dict] | None = None) -> tuple[str, float, dict]:
+    """Generate a complete EnergyPlus IDF using honeybee-energy.
+
+    Returns (idf_text, floor_area_m2, {ZONE NAME: multiplier}). The parser
+    needs the multipliers because EnergyPlus reports zone variables (people,
+    lights, windows...) for a single copy of a multiplied zone.
+    """
+    model = build_energy_model(room, constructions, building_program, natural_ventilation, context_buildings)
 
     # ── Generate IDF ─────────────────────────────────────────────────────────
     sim = SimulationParameter()
@@ -232,6 +242,6 @@ def build_idf(room: dict, constructions: dict, building_program: str,
     # A mismatched year causes EnergyPlus to skip all environment periods silently.
     sim_idf = re.sub(r' 2017,(\s+!- (?:start|end) year)', r' ,\1', sim_idf)
     idf_text = sim_idf + OUTPUTS + model_to_idf(model)
-    floor_area = footprint_area(room['footprint_coordinates']) * floors
-    multipliers = {r.identifier.upper(): r.multiplier for r in all_rooms}
+    floor_area = footprint_area(room['footprint_coordinates']) * room['floors']
+    multipliers = {r.identifier.upper(): r.multiplier for r in model.rooms}
     return idf_text, floor_area, multipliers

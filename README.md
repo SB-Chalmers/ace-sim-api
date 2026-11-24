@@ -38,6 +38,7 @@ service and Foton runs on the CPU (much slower).
 | `POST` | `/v1/simulate` | Both, in parallel |
 | `POST` | `/v1/grasshopper-split` | The request as a Grasshopper file (`heath_split.ghx`) that rebuilds the backend's daylight and energy models; see [grasshopper/README.md](grasshopper/README.md) |
 | `POST` | `/v1/grasshopper` | The same with one detailed model for daylight and energy (`heath.ghx`) |
+| `POST` | `/v1/hbjson` | The `/v1/energy` request as the Honeybee model it would simulate (`heath.hbjson`), without running EnergyPlus |
 | `GET` | `/health` | Liveness (no key needed) |
 
 Full schemas are at `/docs`. A minimal request:

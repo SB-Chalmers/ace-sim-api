@@ -18,6 +18,7 @@ import numpy as np
 
 from . import packing
 from simulation.energy.epsm_client import fetch_constructions
+from simulation.energy.idf_builder import build_energy_model
 from simulation.energy.simulate import run_energy
 from simulation.model import build_model
 from simulation.runner import df_summary, run_daylight, sda_summary
@@ -51,6 +52,14 @@ def build(room: dict, context: list[dict]):
         return build_model(room, context)
     except Exception as exc:
         raise BadInput(f'Unable to build the model from room: {exc}') from exc
+
+
+def _constructions(opts: dict) -> dict:
+    """The EPSM construction records named in the energy options."""
+    try:
+        return fetch_constructions(opts['constructions'])
+    except LookupError as exc:
+        raise BadInput(str(exc)) from exc
 
 
 def _array(values, pack: bool, kind: str, decimals: int):
@@ -108,10 +117,7 @@ def energy_job(request: dict) -> dict:
     pack = request.get('pack', True)
     room = request['room']
     context = request.get('context_buildings', [])
-    try:
-        constructions = fetch_constructions(opts['constructions'])
-    except LookupError as exc:
-        raise BadInput(str(exc)) from exc
+    constructions = _constructions(opts)
     with tempfile.TemporaryDirectory(prefix='energy_') as folder:
         epw_path, weather = _weather(request.get('epw'), folder)
         result = run_energy(
@@ -134,10 +140,7 @@ def energy_rc_job(request: dict) -> dict:
     pack = request.get('pack', True)
     room = request['room']
     context = request.get('context_buildings', [])
-    try:
-        constructions = fetch_constructions(opts['constructions'])
-    except LookupError as exc:
-        raise BadInput(str(exc)) from exc
+    constructions = _constructions(opts)
     with tempfile.TemporaryDirectory(prefix='energy_rc_') as folder:
         epw_path, weather = _weather(request.get('epw'), folder)
         try:
@@ -153,3 +156,15 @@ def energy_rc_job(request: dict) -> dict:
     for key in ('heating_hourly_kwh', 'cooling_hourly_kwh'):
         result[key] = _array(result.get(key), pack, 'series', 4)
     return {'weather': weather, 'seconds': round(time.perf_counter() - started, 3), **result}
+
+
+def hbjson_job(request: dict) -> dict:
+    """The energy job's Honeybee Model as a dict (an .hbjson), without running EnergyPlus."""
+    opts = request['energy']
+    model = build_energy_model(
+        request['room'], _constructions(opts),
+        opts.get('building_program', 'Office'),
+        opts.get('natural_ventilation', False),
+        request.get('context_buildings', []),
+    )
+    return {'model': model.to_dict()}

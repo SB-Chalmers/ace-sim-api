@@ -124,3 +124,14 @@ def test_each_window_gets_an_overhang_and_two_fins(captured_model):
         width = max(v.distance_to_point(w) for v in aperture.geometry.vertices
                     for w in aperture.geometry.vertices if abs(v.z - w.z) < 1e-9)
         assert overhang.area == pytest.approx(width * 0.8)
+
+
+def test_energy_model_round_trips_as_hbjson():
+    """POST /v1/hbjson returns this dict; it must load back with the energy properties."""
+    from honeybee.model import Model
+
+    room = full_room(ROOM)
+    model = Model.from_dict(idf_builder.build_energy_model(room, CONSTRUCTIONS, 'Office', False, []).to_dict())
+    assert model.rooms[0].properties.energy.construction_set.identifier == 'EPSM_ConstructionSet'
+    assert model.rooms[0].properties.energy.program_type.identifier == 'Generic Office Program'
+    assert [r.multiplier for r in model.rooms] == [1, 1, 1]

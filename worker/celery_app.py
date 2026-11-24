@@ -1,11 +1,11 @@
 """
 worker.celery_app
 ─────────────────
-Celery app and the two tasks. Each task goes to its own queue so the hardware
-can be matched to the work:
+Celery app and its tasks. The tasks go to two queues so the hardware can be
+matched to the work:
 
   daylight  Foton. Mostly CPU setup, a little GPU tracing: one process per core.
-  energy    EnergyPlus. One process per core.
+  energy    EnergyPlus, EPSM RC and HBJSON export. One process per core.
 
 Workers pull a job only when they are free (acks_late + prefetch 1), so jobs
 spread across every worker on every machine attached to the same Redis.
@@ -47,6 +47,7 @@ app.conf.update(
         'simulation.energy': {'queue': 'energy'},
         # RC runs in about 0.1 s, so it shares the CPU queue with EnergyPlus.
         'simulation.energy_rc': {'queue': 'energy'},
+        'simulation.hbjson': {'queue': 'energy'},
     },
 )
 
@@ -89,3 +90,11 @@ def energy_rc(request: dict) -> dict:
     from .jobs import energy_rc_job
 
     return _run(energy_rc_job, request)
+
+
+@app.task(name='simulation.hbjson')
+def hbjson(request: dict) -> dict:
+    """Celery task on the "energy" (CPU) queue: build the energy model, no simulation."""
+    from .jobs import hbjson_job
+
+    return _run(hbjson_job, request)

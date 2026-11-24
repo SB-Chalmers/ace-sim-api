@@ -26,7 +26,7 @@ def client(monkeypatch):
     celery_app.app.conf.task_always_eager = True
     monkeypatch.setattr(jobs, 'daylight_job', lambda request: DAYLIGHT_RESULT)
     monkeypatch.setattr(jobs, 'energy_job', lambda request: ENERGY_RESULT)
-    monkeypatch.setattr(jobs, 'hbjson_job', lambda request: {'model': {'type': 'Model'}})
+    monkeypatch.setattr(jobs, 'hbjson_job', lambda request: {'model': {'detailed': request.get('detailed', False)}})
     monkeypatch.setattr(auth, 'APP_KEYS', {'secret': 'heath'})
     yield TestClient(app)
     celery_app.app.conf.task_always_eager = False
@@ -74,7 +74,7 @@ def test_validation_error_is_422(client):
 
 
 @pytest.mark.parametrize('path', ['/v1/daylight', '/v1/energy', '/v1/energy-rc', '/v1/grasshopper',
-                                  '/v1/grasshopper-split', '/v1/hbjson'])
+                                  '/v1/grasshopper-split', '/v1/hbjson', '/v1/hbjson-detailed'])
 def test_impossible_geometry_is_422_on_every_endpoint(client, path):
     """Checked in the API, so no worker slot is spent on it."""
     room = {'footprint_coordinates': [[0, 0], [4, 0], [8, 0]]}
@@ -102,11 +102,12 @@ def test_every_task_has_a_job_key():
     assert set(FIELDS) == {name for name in app.tasks if name.startswith('simulation.')}
 
 
-def test_hbjson_is_a_download_of_the_model(client):
-    response = post(client, '/v1/hbjson', {'room': ROOM, 'energy': ENERGY})
+@pytest.mark.parametrize('path,detailed', [('/v1/hbjson', False), ('/v1/hbjson-detailed', True)])
+def test_hbjson_is_a_download_of_the_model(client, path, detailed):
+    response = post(client, path, {'room': ROOM, 'energy': ENERGY})
     assert response.status_code == 200, response.text
     assert 'heath.hbjson' in response.headers['content-disposition']
-    assert response.json() == {'type': 'Model'}
+    assert response.json() == {'detailed': detailed}
 
 
 GHX = [('/v1/grasshopper', 'heath.ghx'), ('/v1/grasshopper-split', 'heath_split.ghx')]

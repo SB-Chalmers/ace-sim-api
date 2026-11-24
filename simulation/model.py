@@ -20,7 +20,7 @@ from .geometry import (context_shades, make_adiabatic, shade_windows, shading_de
                        window_ratios)
 
 
-def _add_windows(room: Room, cfg: dict, floor_number: int) -> None:
+def add_windows(room: Room, cfg: dict, floor_number: int) -> None:
     """Add rectangular windows by ratio, overhangs and fins; make shared walls adiabatic."""
     window_height, window_spacing = cfg['window_height'], cfg['window_spacing']
     overhang, fin = shading_depths(cfg)
@@ -58,7 +58,7 @@ def _points_inside(polygon: np.ndarray, points: np.ndarray) -> np.ndarray:
     return (np.count_nonzero(straddles & (x < x_cross), axis=1) % 2) == 1
 
 
-def _sensor_grid(room: Room, cfg: dict, identifier: str) -> SensorGrid:
+def sensor_grid(room: Room, cfg: dict, identifier: str) -> SensorGrid:
     """Upward-facing sensors on a regular grid over the room floor.
 
     Ladybug's ``Face3D.mesh_grid`` does the same in pure Python, one sensor at
@@ -102,9 +102,9 @@ def build_model(room: dict, context_buildings: list[dict] | None = None):
     for floor_number in floor_numbers:
         suffix = f'{floor_number:0{width}d}'
         hb_room = storey(room, floor_number, f'Daylight_Room_Floor_{suffix}' if all_floors else 'Daylight_Room')
-        _add_windows(hb_room, room, floor_number)
+        add_windows(hb_room, room, floor_number)
         rooms.append(hb_room)
-        grids.append(_sensor_grid(hb_room, room, f'floor_{suffix}_grid' if all_floors else 'floor_grid'))
+        grids.append(sensor_grid(hb_room, room, f'floor_{suffix}_grid' if all_floors else 'floor_grid'))
 
     if len(rooms) > 1:
         Room.solve_adjacency(rooms)

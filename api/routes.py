@@ -8,6 +8,7 @@ api.routes
   POST /v1/grasshopper the same request as a Grasshopper definition (.ghx)
   POST /v1/grasshopper-split  the same, with the backend's separate daylight and energy models
   POST /v1/hbjson     the /v1/energy Honeybee model as a file (.hbjson), not simulated
+  POST /v1/hbjson-detailed  the model the /v1/grasshopper file builds, as a .hbjson
 
 Each request is validated, put on a Celery queue, and answered when the
 worker is done. Identical requests share one job and abandoned jobs are
@@ -119,6 +120,15 @@ async def grasshopper_split(body: GrasshopperRequest):
     return _ghx(body, 'split', 'heath_split.ghx')
 
 
+def _hbjson(result: dict) -> Response:
+    """The model a hbjson job returned, as a file download."""
+    return Response(
+        json.dumps(result['model']),
+        media_type='application/json',
+        headers={'Content-Disposition': 'attachment; filename="heath.hbjson"'},
+    )
+
+
 @router.post('/hbjson', responses={**_ERRORS, 200: {'content': {'application/json': {}}}})
 async def hbjson(body: EnergyRequest, request: Request):
     """The Honeybee Model /v1/energy would simulate, as a downloadable .hbjson.
@@ -127,9 +137,17 @@ async def hbjson(body: EnergyRequest, request: Request):
     EPSM constructions and ideal air) is built on an energy worker and nothing
     is simulated. Open it with HB Model from HBJSON, or Model.from_hbjson.
     """
-    result = await wait(*submit(celery_app.hbjson, _payload(body)), request)
-    return Response(
-        json.dumps(result['model']),
-        media_type='application/json',
-        headers={'Content-Disposition': 'attachment; filename="heath.hbjson"'},
-    )
+    return _hbjson(await wait(*submit(celery_app.hbjson, _payload(body)), request))
+
+
+@router.post('/hbjson-detailed', responses={**_ERRORS, 200: {'content': {'application/json': {}}}})
+async def hbjson_detailed(body: EnergyRequest, request: Request):
+    """The Honeybee Model the /v1/grasshopper file builds, as a downloadable .hbjson.
+
+    Same request as /v1/energy. One model for daylight and energy, like the
+    Grasshopper template: detailed windows with overhangs and fins, the daylight
+    floor(s) as zones of their own with sensor grids, EPSM constructions,
+    program and ideal air. Nothing is simulated.
+    """
+    payload = {**_payload(body), 'detailed': True}
+    return _hbjson(await wait(*submit(celery_app.hbjson, payload), request))

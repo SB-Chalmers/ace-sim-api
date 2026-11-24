@@ -159,12 +159,17 @@ def energy_rc_job(request: dict) -> dict:
 
 
 def hbjson_job(request: dict) -> dict:
-    """The energy job's Honeybee Model as a dict (an .hbjson), without running EnergyPlus."""
+    """A Honeybee Model as a dict (an .hbjson); nothing is simulated.
+
+    The energy model /v1/energy simulates, or with ``detailed`` the one model
+    the Grasshopper template builds (see build_energy_model).
+    """
     opts = request['energy']
     model = build_energy_model(
         request['room'], _constructions(opts),
         opts.get('building_program', 'Office'),
         opts.get('natural_ventilation', False),
         request.get('context_buildings', []),
+        grasshopper=request.get('detailed', False),
     )
     return {'model': model.to_dict()}

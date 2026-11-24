@@ -127,7 +127,7 @@ def test_each_window_gets_an_overhang_and_two_fins(captured_model):
 
 
 def test_energy_model_round_trips_as_hbjson():
-    """POST /v1/hbjson returns this dict; it must load back with the energy properties."""
+    """POST /v1/hbjson/energy returns this dict; it must load back with the energy properties."""
     from honeybee.model import Model
 
     room = full_room(ROOM)
@@ -138,7 +138,7 @@ def test_energy_model_round_trips_as_hbjson():
 
 
 def test_grasshopper_model_round_trips_as_hbjson():
-    """POST /v1/hbjson returns this model; it must match the template and load back from its dict."""
+    """POST /v1/hbjson/detailed returns this model; it must match the template and load back from its dict."""
     from honeybee.model import Model
     from simulation.model import build_model
 

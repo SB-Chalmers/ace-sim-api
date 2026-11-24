@@ -5,10 +5,11 @@ api.routes
   POST /v1/energy     energy only (annual totals, monthly balance, hourly loads)
   POST /v1/energy-rc  the same request and result, computed with EPSM RC (ISO 52016-1)
   POST /v1/simulate   both, run at the same time
-  POST /v1/grasshopper the same request as a Grasshopper definition (.ghx)
-  POST /v1/grasshopper-split  the same, with the backend's separate daylight and energy models
-  POST /v1/hbjson     the /v1/energy Honeybee model as a file (.hbjson), not simulated
-  POST /v1/hbjson-detailed  the model the /v1/grasshopper file builds, as a .hbjson
+  POST /v1/grasshopper/detailed  the request as a Grasshopper file with one detailed model (heath.ghx)
+  POST /v1/grasshopper/split     the same with the backend's daylight and energy models (heath_split.ghx)
+  POST /v1/hbjson/detailed       the heath.ghx model as a Honeybee file (.hbjson)
+  POST /v1/hbjson/energy         the /v1/energy model as a Honeybee file (.hbjson)
+  POST /v1/grasshopper           deprecated alias of /v1/grasshopper/detailed
 
 Each request is validated, put on a Celery queue, and answered when the
 worker is done. Identical requests share one job and abandoned jobs are
@@ -99,7 +100,12 @@ def _ghx(body: GrasshopperRequest, template: str, filename: str) -> Response:
     )
 
 
-@router.post('/grasshopper', responses={200: {'content': {'application/xml': {}}}})
+_GHX = {200: {'content': {'application/xml': {}}}}
+_HBJSON = {**_ERRORS, 200: {'content': {'application/json': {}}}}
+
+
+@router.post('/grasshopper/detailed', responses=_GHX)
+@router.post('/grasshopper', responses=_GHX, deprecated=True)
 async def grasshopper(body: GrasshopperRequest):
     """The request as a Grasshopper definition with one model for daylight and energy.
 
@@ -109,7 +115,7 @@ async def grasshopper(body: GrasshopperRequest):
     return _ghx(body, 'single', 'heath.ghx')
 
 
-@router.post('/grasshopper-split', responses={200: {'content': {'application/xml': {}}}})
+@router.post('/grasshopper/split', responses=_GHX)
 async def grasshopper_split(body: GrasshopperRequest):
     """The request as a Grasshopper definition that rebuilds the backend's two models.
 
@@ -129,8 +135,8 @@ def _hbjson(result: dict) -> Response:
     )
 
 
-@router.post('/hbjson', responses={**_ERRORS, 200: {'content': {'application/json': {}}}})
-async def hbjson(body: EnergyRequest, request: Request):
+@router.post('/hbjson/energy', responses=_HBJSON)
+async def hbjson_energy(body: EnergyRequest, request: Request):
     """The Honeybee Model /v1/energy would simulate, as a downloadable .hbjson.
 
     Same request as /v1/energy. The model (rooms, windows, shades, program,
@@ -140,9 +146,9 @@ async def hbjson(body: EnergyRequest, request: Request):
     return _hbjson(await wait(*submit(celery_app.hbjson, _payload(body)), request))
 
 
-@router.post('/hbjson-detailed', responses={**_ERRORS, 200: {'content': {'application/json': {}}}})
+@router.post('/hbjson/detailed', responses=_HBJSON)
 async def hbjson_detailed(body: EnergyRequest, request: Request):
-    """The Honeybee Model the /v1/grasshopper file builds, as a downloadable .hbjson.
+    """The Honeybee Model the /v1/grasshopper/detailed file builds, as a downloadable .hbjson.
 
     Same request as /v1/energy. One model for daylight and energy, like the
     Grasshopper template: detailed windows with overhangs and fins, the daylight
